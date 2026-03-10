@@ -2,6 +2,8 @@ add_executable(ngraph-demo
  main.cpp
 )
 
+target_compile_options(ngraph-demo PRIVATE -O3)
+
 target_link_libraries(ngraph-demo ncurses)
 
 add_custom_command(TARGET ngraph-demo POST_BUILD
