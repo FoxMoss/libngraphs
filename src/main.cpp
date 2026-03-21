@@ -4,8 +4,6 @@
 #include <time.h>
 
 #include <algorithm>
-#include <chrono>
-#include <clocale>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -13,10 +11,9 @@
 #include <cstring>
 #include <ctime>
 #include <string>
-#include <thread>
-#include <unordered_map>
-#include <utility>
 #include <vector>
+
+#include "ngraphs.h"
 
 #define MARGIN_SIZE 10
 
@@ -28,7 +25,7 @@ float x_to_screen_space(float value, float min, float max, float range) {
 float y_to_screen_space(float value, float min, float max, float range) {
   auto value_range = max - min;
   return std::round(((value_range - (value - min)) / value_range *
-                     (range - MARGIN_SIZE / 2)));
+                     (range - (float)MARGIN_SIZE / 2)));
 }
 
 void ngraph_draw_vertical_ticks(WINDOW* win, float min_y, float max_y,
@@ -71,8 +68,8 @@ void ngraph_draw_vertical_ticks(WINDOW* win, float min_y, float max_y,
 
 void ngraph_draw_sextants(WINDOW* win, bool* drawn_map, int window_max_y,
                           int window_max_x) {
-  for (size_t y = 0; y < window_max_y; y += 3) {
-    for (size_t x = 0; x < window_max_x; x += 2) {
+  for (int y = 0; y < window_max_y; y += 3) {
+    for (int x = 0; x < window_max_x; x += 2) {
       auto first_first = drawn_map[x + y * window_max_x];
       auto second_first = drawn_map[x + 1 + y * window_max_x];
       auto first_second = drawn_map[x + (y + 1) * window_max_x];
@@ -113,39 +110,35 @@ void ngraph_draw_sextants(WINDOW* win, bool* drawn_map, int window_max_y,
   }
 }
 
-void ngraph_line_graph(WINDOW* win,
-                       std::vector<std::pair<float, float>>& line_data,
-                       bool show_zero_x, bool show_zero_y) {
+void ngraph_line_graph(WINDOW* win, ngraph_point_t* line_data,
+                       size_t line_data_len, bool show_zero_x,
+                       bool show_zero_y) {
   werase(win);
-  if (line_data.empty()) {
+  if (line_data_len == 0) {
     return;
   }
 
-  float min_x = std::min_element(
-                    line_data.begin(), line_data.end(),
-                    [](std::pair<float, float>& a, std::pair<float, float>& b) {
-                      return a.first < b.first;
-                    })
-                    ->first;
-  float max_x = std::max_element(
-                    line_data.begin(), line_data.end(),
-                    [](std::pair<float, float>& a, std::pair<float, float>& b) {
-                      return a.first < b.first;
-                    })
-                    ->first;
+  float min_x = std::min_element(line_data, line_data + line_data_len,
+                                 [](ngraph_point_t& a, ngraph_point_t& b) {
+                                   return a.x < b.x;
+                                 })
+                    ->x;
+  float max_x = std::max_element(line_data, line_data + line_data_len,
+                                 [](ngraph_point_t& a, ngraph_point_t& b) {
+                                   return a.x < b.x;
+                                 })
+                    ->x;
 
-  float min_y = std::min_element(
-                    line_data.begin(), line_data.end(),
-                    [](std::pair<float, float>& a, std::pair<float, float>& b) {
-                      return a.second < b.second;
-                    })
-                    ->second;
-  float max_y = std::max_element(
-                    line_data.begin(), line_data.end(),
-                    [](std::pair<float, float>& a, std::pair<float, float>& b) {
-                      return a.second < b.second;
-                    })
-                    ->second;
+  float min_y = std::min_element(line_data, line_data + line_data_len,
+                                 [](ngraph_point_t& a, ngraph_point_t& b) {
+                                   return a.y < b.y;
+                                 })
+                    ->y;
+  float max_y = std::max_element(line_data, line_data + line_data_len,
+                                 [](ngraph_point_t& a, ngraph_point_t& b) {
+                                   return a.y < b.y;
+                                 })
+                    ->y;
 
   if (show_zero_x) {
     min_x = std::min(min_x, 0.0f);
@@ -160,29 +153,25 @@ void ngraph_line_graph(WINDOW* win,
   int window_max_y = getmaxy(win) * 3;
 
   size_t map_length = window_max_x * window_max_y;
-  bool drawn_map[map_length];
-  memset(drawn_map, 0, map_length);
-
-  float x_last = 0;
-  float y_last = 0;
+  std::vector<uint8_t> drawn_map(map_length, 0);
 
   wattron(win, COLOR_PAIR(1));
-  for (auto point_iter = line_data.begin();
-       point_iter != line_data.end() && point_iter + 1 != line_data.end();
+  for (auto point_iter = line_data; point_iter != line_data + line_data_len &&
+                                    point_iter + 1 != line_data + line_data_len;
        point_iter++) {
-    float x_screenspace = x_to_screen_space(point_iter->first, min_x, max_x,
+    float x_screenspace = x_to_screen_space(point_iter->x, min_x, max_x,
                                             (float)window_max_x / 2) *
                           2;
-    float y_screenspace = y_to_screen_space(point_iter->second, min_y, max_y,
+    float y_screenspace = y_to_screen_space(point_iter->y, min_y, max_y,
                                             (float)window_max_y / 3) *
                           3;
 
     float next_x_screenspace =
-        x_to_screen_space((point_iter + 1)->first, min_x, max_x,
+        x_to_screen_space((point_iter + 1)->x, min_x, max_x,
                           (float)window_max_x / 2) *
         2;
     float next_y_screenspace =
-        y_to_screen_space((point_iter + 1)->second, min_y, max_y,
+        y_to_screen_space((point_iter + 1)->y, min_y, max_y,
                           (float)window_max_y / 3) *
         3;
 
@@ -211,8 +200,9 @@ void ngraph_line_graph(WINDOW* win,
         break;
       }
 
-      auto my_pos = std::clamp((int)std::round(x_cursor), 0, window_max_x - 1) +
-                    (int)std::round(y_cursor * window_max_x);
+      size_t my_pos =
+          std::clamp((int)std::round(x_cursor), 0, window_max_x - 1) +
+          (int)std::round(y_cursor * window_max_x);
       if (my_pos <= map_length && map_length > 0) {
         drawn_map[my_pos] = true;
       }
@@ -224,14 +214,15 @@ void ngraph_line_graph(WINDOW* win,
                              ((float)window_max_x) / 2, true, true);
 
   wattron(win, COLOR_PAIR(2));
-  ngraph_draw_sextants(win, drawn_map, window_max_y, window_max_x);
+  ngraph_draw_sextants(win, (bool*)drawn_map.data(), window_max_y,
+                       window_max_x);
   wattroff(win, COLOR_PAIR(2));
 
   wrefresh(win);
 }
 
-void ngraph_draw_loading_bar(WINDOW* win, float value, float max,
-                             uint16_t segment_count) {
+void ngraph_progress_bar(WINDOW* win, float value, float max,
+                         uint16_t segment_count) {
   werase(win);
 
   auto progress = std::min(value / max, 1.0f);
@@ -240,8 +231,7 @@ void ngraph_draw_loading_bar(WINDOW* win, float value, float max,
   int window_max_y = getmaxy(win) * 3;
 
   size_t map_length = window_max_x * window_max_y;
-  bool shaded_map[map_length];
-  memset(shaded_map, 0, map_length);
+  std::vector<uint8_t> shaded_map(map_length, 0);
 
   float segment_size = (((float)window_max_x) / (segment_count + 1) * 2);
   float half_segment_size = segment_size / 2;
@@ -251,13 +241,14 @@ void ngraph_draw_loading_bar(WINDOW* win, float value, float max,
          x < i * half_segment_size + segment_size; x++) {
       for (int32_t y = 0; y < window_max_y; y++) {
         float bottom_y = (x - i * half_segment_size) / (segment_size / 2) - 0.7;
-        float shaded_bottom_y =
-            std::pow((value * ((float)segment_count / 4)) - ((float)i / 4) + 1, 3);
+        float shaded_bottom_y = std::pow(
+            (progress * ((float)segment_count / 4)) - ((float)i / 4) + 1, 3);
         float top_y = (x - i * half_segment_size) / (segment_size / 2);
 
         if (bottom_y < 1 - ((float)y / window_max_y) &&
             1 - ((float)y / window_max_y) < top_y) {
-          auto my_pos = (int)std::round(x) + (int)std::round(y * window_max_x);
+          size_t my_pos =
+              (int)std::round(x) + (int)std::round(y * window_max_x);
           if (my_pos <= map_length && map_length > 0) {
             if (shaded_bottom_y > 1 - ((float)y / window_max_y)) {
               shaded_map[my_pos] = true;
@@ -267,86 +258,11 @@ void ngraph_draw_loading_bar(WINDOW* win, float value, float max,
       }
     }
   }
-  //
-  // wattron(win, COLOR_PAIR(2));
-  // ngraph_draw_sextants(win, drawn_map, window_max_y, window_max_x);
-  // wattroff(win, COLOR_PAIR(2));
-  //
   wattron(win, COLOR_PAIR(3));
-  ngraph_draw_sextants(win, shaded_map, window_max_y, window_max_x);
+  ngraph_draw_sextants(win, (bool*)shaded_map.data(), window_max_y,
+                       window_max_x);
   wattroff(win, COLOR_PAIR(3));
 
   wrefresh(win);
 }
 
-int main(int argc, char* argv[]) {
-  setlocale(LC_ALL, "en_US.UTF-8");
-  initscr();
-  cbreak();
-  curs_set(0);
-
-  keypad(stdscr, TRUE);
-
-  start_color();
-
-  int window_max_x = getmaxx(stdscr);
-  int window_max_y = getmaxy(stdscr);
-
-  auto graph_win = newwin(window_max_y / 2 - 5, window_max_x - 20, 5, 10);
-  auto progress_win =
-      newwin(window_max_y / 8, window_max_x - 20, window_max_y / 8 * 7, 10);
-
-  std::vector<std::pair<float, float>> line_data;
-  float value = 0;
-  float i = 0;
-  for (i = 0; i < 200; i += 1) {
-    line_data.push_back({i, value});
-    value += (float)(rand() % 5 - 2) / 100;
-  }
-
-  std::vector<std::pair<float, float>> new_line_data;
-
-  init_color(COLOR_BLACK, 0, 0, 0);
-  init_color(COLOR_YELLOW, 925, 375, 0);
-  init_color(COLOR_RED, 976, 242, 0);
-  init_pair(2, COLOR_YELLOW, COLOR_BLACK);
-  init_pair(1, COLOR_RED, COLOR_BLACK);
-  init_pair(3, COLOR_RED, COLOR_BLACK);
-
-  float progress = 0;
-
-  int ch;
-  do {
-    window_max_x = getmaxx(stdscr);
-    window_max_y = getmaxy(stdscr);
-    wresize(graph_win, (window_max_y / 8) * 7 - 5, window_max_x - 20);
-    wresize(progress_win, (window_max_y / 8), window_max_x - 20);
-    refresh();
-    box(graph_win, 0, 0);
-    ngraph_line_graph(graph_win, line_data, false, true);
-
-    progress += 0.1;
-
-    if (progress > 1) {
-      progress = 0.0f;
-
-      new_line_data.clear();
-      new_line_data.insert(new_line_data.begin(), line_data.begin() + 1,
-                           line_data.end());
-
-      new_line_data.push_back({i, value});
-      value += (float)(rand() % 41 - 20) / 100;
-      i += 1;
-      line_data = new_line_data;
-    }
-
-    ngraph_draw_loading_bar(progress_win, progress, 1.0, 20);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
-  } while (true);
-
-  delwin(graph_win);
-  endwin();
-
-  return 0;
-}
