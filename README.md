@@ -1,4 +1,4 @@
 # ngraphs
-A ncurses library for graphing.
+A c library for graphing in ncurses.
 
 ![](screenshot.png)
