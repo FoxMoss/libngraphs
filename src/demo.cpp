@@ -1,11 +1,13 @@
-#include <locale.h>
-#include <ncurses.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "ngraphs.h"
+#include <math.h>
+#include <ncurses.h>
+
+#include <chrono>
+#include <clocale>
+#include <cstdlib>
+#include <thread>
+#include <vector>
+
 
 int main() {
   setlocale(LC_ALL, "en_US.UTF-8");
@@ -24,18 +26,15 @@ int main() {
   auto progress_win =
       newwin(window_max_y / 8, window_max_x - 20, window_max_y / 8 * 7, 10);
 
-  size_t line_data_len = 200;
-  struct ngraph_point_t* line_data = (struct ngraph_point_t*)malloc(
-      line_data_len * sizeof(struct ngraph_point_t));
-  struct ngraph_point_t* back_buffer= (struct ngraph_point_t*)malloc(
-      line_data_len * sizeof(struct ngraph_point_t));
+  std::vector<ngraph_point_t> line_data;
   float value = 0;
-  size_t i = 0;
-  for (; i < line_data_len; i += 1) {
-    line_data[i] = (struct ngraph_point_t){.x = (float)i, .y = value};
-
-    value += (float)(rand() % 41 - 20) / 100;
+  float i = 0;
+  for (i = 0; i < 200; i += 1) {
+    line_data.push_back({i, value});
+    value += (float)(rand() % 41 - 20) / 100;;
   }
+
+  std::vector<ngraph_point_t> new_line_data;
 
   init_color(COLOR_BLACK, 0, 0, 0);
   init_color(COLOR_YELLOW, 925, 375, 0);
@@ -53,24 +52,26 @@ int main() {
     wresize(progress_win, (window_max_y / 8), window_max_x - 20);
     refresh();
     box(graph_win, 0, 0);
-    ngraph_line_graph(graph_win, line_data, line_data_len, false, true);
+    ngraph_line_graph(graph_win, line_data.data(), line_data.size(), false, true);
 
-    progress += 0.001;
+    progress += 0.1;
 
     if (progress > 1) {
       progress = 0.0f;
 
-      memcpy(back_buffer, line_data + 1,
-             (line_data_len - 1) * sizeof(struct ngraph_point_t));
-      memcpy(line_data, back_buffer,
-             line_data_len * sizeof(struct ngraph_point_t));
-      line_data[line_data_len - 1] =
-          (struct ngraph_point_t){.x = (float)i, .y = value};
+      new_line_data.clear();
+      new_line_data.insert(new_line_data.begin(), line_data.begin() + 1,
+                           line_data.end());
+
+      new_line_data.push_back({i, value});
       value += (float)(rand() % 41 - 20) / 100;
       i += 1;
+      line_data = new_line_data;
     }
 
     ngraph_progress_bar(progress_win, progress, 1.0, 20);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
   } while (true);
 
   delwin(graph_win);

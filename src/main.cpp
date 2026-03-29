@@ -226,6 +226,7 @@ void ngraph_progress_bar(WINDOW* win, float value, float max,
   werase(win);
 
   auto progress = std::min(value / max, 1.0f);
+  progress = std::pow(progress, 2);
 
   int window_max_x = getmaxx(win) * 2;
   int window_max_y = getmaxy(win) * 3;
