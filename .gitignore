@@ -1,3 +1,4 @@
 build/
+build-alpine/
 .cache/
 compile_commands.json

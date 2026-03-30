@@ -1,9 +1,13 @@
+#include <time.h>
 #include <locale.h>
 #include <ncurses.h>
+#include <sched.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "ngraphs.h"
 
@@ -45,20 +49,28 @@ int main() {
   init_pair(3, COLOR_RED, COLOR_BLACK);
 
   float progress = 0;
+  long start = clock();
+  const long goal = CLOCKS_PER_SEC*1;
+
 
   do {
+    sched_yield();
+
     window_max_x = getmaxx(stdscr);
     window_max_y = getmaxy(stdscr);
     wresize(graph_win, (window_max_y / 8) * 7 - 5, window_max_x - 20);
     wresize(progress_win, (window_max_y / 8), window_max_x - 20);
+    mvwin(progress_win, window_max_y / 8 * 7, 10);
+
     refresh();
     box(graph_win, 0, 0);
     ngraph_line_graph(graph_win, line_data, line_data_len, false, true);
 
-    progress += 0.001;
+    progress = (float)(clock()-start)/goal;
 
     if (progress > 1) {
       progress = 0.0f;
+      start = clock();
 
       memcpy(back_buffer, line_data + 1,
              (line_data_len - 1) * sizeof(struct ngraph_point_t));
