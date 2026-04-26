@@ -113,6 +113,13 @@ void ngraph_draw_sextants(WINDOW* win, bool* drawn_map, int window_max_y,
 void ngraph_line_graph(WINDOW* win, ngraph_point_t* line_data,
                        size_t line_data_len, bool show_zero_x,
                        bool show_zero_y) {
+  ngraph_line_graph_max(win, line_data, line_data_len, show_zero_x, show_zero_y,
+                        false, 0, false, 0);
+}
+void ngraph_line_graph_max(WINDOW* win, ngraph_point_t* line_data,
+                           size_t line_data_len, bool show_zero_x,
+                           bool show_zero_y, bool show_max_x, float graph_max_x,
+                           bool show_max_y, float graph_max_y) {
   werase(win);
   if (line_data_len == 0) {
     return;
@@ -147,6 +154,14 @@ void ngraph_line_graph(WINDOW* win, ngraph_point_t* line_data,
   if (show_zero_y) {
     min_y = std::min(min_y, 0.0f);
     max_y = std::max(max_y, 0.0f);
+  }
+  if (show_max_x) {
+    min_x = std::min(min_x, graph_max_x);
+    max_x = std::max(max_x, graph_max_x);
+  }
+  if (show_max_y) {
+    min_y = std::min(min_y, graph_max_y);
+    max_y = std::max(max_y, graph_max_y);
   }
 
   int window_max_x = getmaxx(win) * 2;
