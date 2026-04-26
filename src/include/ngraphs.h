@@ -18,7 +18,8 @@ void ngraph_line_graph(WINDOW* win, struct ngraph_point_t* line_data,
 void ngraph_line_graph_max(WINDOW* win, struct ngraph_point_t* line_data,
                            size_t line_data_len, bool show_zero_x,
                            bool show_zero_y, bool show_max_x, float graph_max_x,
-                           bool show_max_y, float graph_max_y);
+                           bool show_max_y, float graph_max_y, bool show_x_step,
+                           float x_step, bool show_y_step, float y_step);
 
 void ngraph_progress_bar(WINDOW* win, float value, float max,
                          uint16_t segment_count);

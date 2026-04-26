@@ -28,14 +28,18 @@ float y_to_screen_space(float value, float min, float max, float range) {
                      (range - (float)MARGIN_SIZE / 2)));
 }
 
-void ngraph_draw_vertical_ticks(WINDOW* win, float min_y, float max_y,
-                                float min_x, float max_x, float window_max_y,
-                                float window_max_x, bool vertical,
-                                bool horizontal) {
+void ngraph_draw_vertical_ticks(
+    WINDOW* win, float min_y, float max_y, float min_x, float max_x,
+    float window_max_y, float window_max_x, bool vertical, bool horizontal,
+    bool horizontal_increment_overide = false, float horizontal_increment = 0.0,
+    bool vertical_increment_overide = false, float vertical_increment = 0.0) {
   if (vertical) {
     auto y_ticks_divider = std::max(std::roundf(window_max_y / 2), 1.0f);
     float line_increments =
         std::pow(10, std::ceil(std::log10(max_y - min_y))) / y_ticks_divider;
+    if (vertical_increment_overide) {
+      line_increments = vertical_increment;
+    }
     auto base_line = std::round(min_y / line_increments) * line_increments;
 
     for (int y = 0; y < y_ticks_divider * 10; y++) {
@@ -51,6 +55,11 @@ void ngraph_draw_vertical_ticks(WINDOW* win, float min_y, float max_y,
     auto x_ticks_divider = std::max(std::roundf(window_max_x / 20), 1.0f);
     float line_increments =
         std::pow(10, std::ceil(std::log10(max_x - min_x))) / x_ticks_divider;
+
+    if (horizontal_increment_overide) {
+      line_increments = horizontal_increment;
+    }
+
     auto base_line = std::round(min_x / line_increments) * line_increments;
 
     for (size_t x = 0; x < x_ticks_divider * 10; x++) {
@@ -114,12 +123,13 @@ void ngraph_line_graph(WINDOW* win, ngraph_point_t* line_data,
                        size_t line_data_len, bool show_zero_x,
                        bool show_zero_y) {
   ngraph_line_graph_max(win, line_data, line_data_len, show_zero_x, show_zero_y,
-                        false, 0, false, 0);
+                        false, 0, false, 0, false, 0.0, false, 0.0);
 }
-void ngraph_line_graph_max(WINDOW* win, ngraph_point_t* line_data,
+void ngraph_line_graph_max(WINDOW* win, struct ngraph_point_t* line_data,
                            size_t line_data_len, bool show_zero_x,
                            bool show_zero_y, bool show_max_x, float graph_max_x,
-                           bool show_max_y, float graph_max_y) {
+                           bool show_max_y, float graph_max_y, bool show_x_step,
+                           float x_step, bool show_y_step, float y_step) {
   werase(win);
   if (line_data_len == 0) {
     return;
@@ -226,7 +236,8 @@ void ngraph_line_graph_max(WINDOW* win, ngraph_point_t* line_data,
 
   ngraph_draw_vertical_ticks(win, min_y, max_y, min_x, max_x,
                              ((float)window_max_y) / 3,
-                             ((float)window_max_x) / 2, true, true);
+                             ((float)window_max_x) / 2, true, true, show_x_step,
+                             x_step, show_y_step, y_step);
 
   wattron(win, COLOR_PAIR(2));
   ngraph_draw_sextants(win, (bool*)drawn_map.data(), window_max_y,
